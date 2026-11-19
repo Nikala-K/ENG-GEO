@@ -31,16 +31,49 @@ break (broke, broken)
 $ python -m engeo apple --json      # same result as JSON
 ```
 
-**HTTP API**
+**HTTP API** — `python -m engeo serve --port 8000`
 
-```
-$ python -m engeo serve --port 8000
-GET http://127.0.0.1:8000/lookup?word=Water   -> 200 + JSON result
-GET http://127.0.0.1:8000/lookup/Water        -> same
-GET http://127.0.0.1:8000/health
+Read-only JSON over HTTP, GET only. **Where the data comes from:**
+`ინგლისურ-ქართული-ლექსიკონი.pdf` → `tools/build_dictionary.py` →
+`engeo/data/dictionary.json` (8,658 entries) → loaded into memory once at startup.
+Every endpoint answers from that in-memory copy — no database, no external service, no
+network calls. To change the data, rebuild or edit `dictionary.json` and restart the server.
+
+| Endpoint | What it does | Responses |
+|---|---|---|
+| `GET /lookup?word=<word>` | Georgian meanings of one English word, case-insensitive (see Lookup rules) | `200` found · `400` word missing/blank · `404` not found, with `suggestions` |
+| `GET /lookup/<word>` | Same, with the URL-encoded word in the path | same as above |
+| `GET /health` | Liveness check; reports the loaded entry count and source file, without a lookup | `200` |
+| `GET /` | This description as JSON: every endpoint, its data source, responses and an example | `200` |
+
+Any other path returns `404` with the list of endpoints.
+
+`/lookup` response:
+
+```json
+{
+  "query": "Water",
+  "found": true,
+  "match": "exact",            // "exact" | "irregular form" | "base form" | null
+  "results": [
+    {
+      "word": "water",          // headword as printed in the dictionary
+      "forms": [],              // irregular forms, e.g. ["broke", "broken"]
+      "meanings": ["წყალი", "მორწყვა"],   // one item per sense
+      "phrases": [],            // [{"en": "break down", "ka": "ჩაშლა"}, ...]
+      "notes": []               // English text the parser could not attach to a meaning
+    }
+  ],
+  "suggestions": []             // similar headwords, only when found is false
+}
 ```
 
-Unknown words return `404` with `"found": false` and spelling `suggestions`.
+`/health` response:
+
+```json
+{"status": "ok", "entries": 8658, "source": "ინგლისურ-ქართული-ლექსიკონი.pdf",
+ "data_file": "engeo/data/dictionary.json"}
+```
 
 **Any other language** — read `engeo/data/dictionary.json` directly
 (`entries[]` with `word`, `variants`, `forms`, `meanings`, `phrases`, `notes`, `source`).

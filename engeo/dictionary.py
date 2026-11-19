@@ -35,7 +35,9 @@ def base_forms(word):
 class Dictionary:
     def __init__(self, path=DATA_FILE):
         with open(path, encoding="utf-8") as f:
-            self.entries = json.load(f)["entries"]
+            data = json.load(f)
+        self.entries = data["entries"]
+        self.source = data.get("source")  # file the data was converted from
         self.index = {}  # normalized headword -> entries
         self.form_index = {}  # normalized irregular form ("broke") -> entries
         for entry in self.entries:
